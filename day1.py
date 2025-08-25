@@ -1,30 +1,50 @@
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
+"""
+Basic implementation of scaled dot-product self-attention using PyTorch.
+"""
 
-# Create figure
-fig, ax = plt.subplots(figsize=(8,5))
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 
-# Example sentence tokens
-tokens = ["The", "cat", "sat", "on", "the", "mat", "because", "it", "was", "tired"]
-x_positions = range(len(tokens))
 
-# Plot tokens as text nodes
-for i, token in enumerate(tokens):
-    ax.text(x_positions[i], 1, token, ha="center", va="center", fontsize=11, bbox=dict(boxstyle="round,pad=0.3", fc="lightblue", ec="black", lw=1))
+class SelfAttention(nn.Module):
+    """Simple self-attention mechanism."""
 
-# Draw attention arrows (illustrative, not exact weights)
-attention_pairs = [(7,1), (7,0), (9,7)]  # "it"->"cat", "it"->"The", "tired"->"it"
-for src, tgt in attention_pairs:
-    ax.annotate("",
-                xy=(x_positions[tgt], 1.05), xycoords='data',
-                xytext=(x_positions[src], 1.25), textcoords='data',
-                arrowprops=dict(arrowstyle="->", lw=1.5, color="red"))
+    def __init__(self, embed_dim: int) -> None:
+        """Initialize the linear layers used to compute attention.
 
-# Styling
-ax.set_xlim(-1, len(tokens))
-ax.set_ylim(0.5, 2)
-ax.axis("off")
-ax.set_title("Self-Attention Example: 'The cat sat on the mat because it was tired.'", fontsize=12, pad=15)
+        Args:
+            embed_dim: Dimensionality of the input embeddings.
+        """
+        super().__init__()
+        self.query = nn.Linear(embed_dim, embed_dim)
+        self.key = nn.Linear(embed_dim, embed_dim)
+        self.value = nn.Linear(embed_dim, embed_dim)
+        self.scale = embed_dim ** 0.5
 
-plt.tight_layout()
-plt.show()
+    def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """Apply self-attention to the input tensor.
+
+        Args:
+            x: Input tensor of shape (batch, seq_len, embed_dim).
+
+        Returns:
+            A tuple containing the output tensor and the attention weights.
+        """
+        q = self.query(x)
+        k = self.key(x)
+        v = self.value(x)
+
+        attn_scores = torch.matmul(q, k.transpose(-2, -1)) / self.scale
+        attn_weights = F.softmax(attn_scores, dim=-1)
+        output = torch.matmul(attn_weights, v)
+        return output, attn_weights
+
+
+if __name__ == "__main__":
+    torch.manual_seed(0)
+    sample = torch.randn(1, 4, 8)  # (batch, seq_len, embed_dim)
+    attention = SelfAttention(embed_dim=8)
+    out, weights = attention(sample)
+    print("Output shape:", out.shape)
+    print("Attention weights shape:", weights.shape)
